@@ -1,8 +1,11 @@
 #[cfg(windows)] extern crate winapi;
 use std::io::Error;
 use std::mem;
+use std::mem::{size_of};
 use std::ptr::null_mut;
 use winapi::shared::windef::HWND;
+use winapi::shared::windef::HICON;
+
 use winapi::um::winuser::{
     MSG,
     DispatchMessageW,
@@ -35,7 +38,7 @@ fn handle_message( window : &mut Window ) -> bool {
 }
 
 fn create_window( name: &str, title: &str) -> Result<Window, Error>{
-    use winapi::um::winuser::{CW_USEDEFAULT, WS_VISIBLE, WS_OVERLAPPEDWINDOW, CreateWindowExW, DefWindowProcW, WNDCLASSW, CS_HREDRAW, CS_VREDRAW, RegisterClassW};
+    use winapi::um::winuser::{CW_USEDEFAULT, WS_VISIBLE, WS_OVERLAPPEDWINDOW, CreateWindowExW, DefWindowProcW, WNDCLASSEXW, CS_HREDRAW, CS_VREDRAW, RegisterClassExW};
 
     //Convert strings to correct format
     let name = win32_string( name );
@@ -43,7 +46,9 @@ fn create_window( name: &str, title: &str) -> Result<Window, Error>{
 
     unsafe {
         let hinstance = winapi::um::libloaderapi::GetModuleHandleW( null_mut() );   
-        let wnd_class = WNDCLASSW {
+        let wnd_class = WNDCLASSEXW {
+            cbSize : size_of::<WNDCLASSEXW>()as u32,
+            hIconSm : 0 as HICON,
             style : CS_HREDRAW | CS_VREDRAW,
             lpfnWndProc : Some( DefWindowProcW ),
             hInstance : hinstance,
@@ -56,7 +61,7 @@ fn create_window( name: &str, title: &str) -> Result<Window, Error>{
             lpszMenuName: null_mut(),
         };
 
-        RegisterClassW( &wnd_class );
+        RegisterClassExW( &wnd_class );
         
         let handle = CreateWindowExW(
             0,
