@@ -3,8 +3,13 @@ use std::io::Error;
 use std::mem;
 use std::mem::{size_of};
 use std::ptr::null_mut;
-use winapi::shared::windef::HWND;
-use winapi::shared::windef::HICON;
+use winapi::shared::windef::{HICON, HWND};
+
+use winapi::shared::dxgi::*;
+use winapi::shared::dxgitype::*;
+use winapi::shared::dxgiformat::*;
+use winapi::um::d3d11::*;
+use winapi::um::d3dcommon::{D3D_DRIVER_TYPE_HARDWARE};
 
 use winapi::um::winuser::{
     MSG,
@@ -34,6 +39,43 @@ fn handle_message( window : &mut Window ) -> bool {
         } else {
             false
         }
+    }
+}
+
+fn create_swap_chain(window : HWND){
+    unsafe {
+        let mut swap_chain_desc : DXGI_SWAP_CHAIN_DESC = mem::zeroed();
+        swap_chain_desc.BufferCount = 2;
+        swap_chain_desc.Windowed = 1;
+        swap_chain_desc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        swap_chain_desc.SampleDesc.Count = 1;
+        swap_chain_desc.SampleDesc.Quality = 0;
+        swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+        swap_chain_desc.OutputWindow = window;
+
+        let mut _swap_chain : *mut IDXGISwapChain = mem::zeroed();
+        let mut _device : *mut ID3D11Device = mem::zeroed();
+        let mut _device_context : *mut ID3D11DeviceContext = mem::zeroed();
+
+        let res = D3D11CreateDeviceAndSwapChain(
+            null_mut(),
+            D3D_DRIVER_TYPE_HARDWARE,
+            null_mut(),
+            0,
+            null_mut(),
+            0,
+            7, 
+            &swap_chain_desc,
+            &mut _swap_chain as _,
+            &mut _device as _,
+            null_mut(),
+            &mut _device_context as _
+        );
+        
+        println!("Res: {}", res);
+
+        // let back_buffer : *mut ID3D11Resource = mem::zeroed();
+        // let render_target : *mut ID3D11RenderTargetView = mem::zeroed();
     }
 }
 
@@ -80,6 +122,7 @@ fn create_window( name: &str, title: &str) -> Result<Window, Error>{
         if handle.is_null() {
             Err( Error::last_os_error() )
         } else {
+            create_swap_chain(handle);
             Ok( Window { handle } )
         }
     }
@@ -87,7 +130,7 @@ fn create_window( name: &str, title: &str) -> Result<Window, Error>{
 
 fn main() {
     let name = "winclass1";
-    let title = "muntitle";
+    let title = "win_title";
 
     let mut window = create_window(&name, &title).unwrap();
 
