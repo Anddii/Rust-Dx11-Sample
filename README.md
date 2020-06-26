@@ -1,1 +1,1 @@
-# Rust - Winapi Dx11 Sample
+# Rust - DX11 Sample
