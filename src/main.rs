@@ -46,6 +46,7 @@ struct ConstantBufferStruct {
 
 struct Buffers {
     _vertex_buffer: *mut ID3D11Buffer,
+    _index_buffer: *mut ID3D11Buffer,
     _constant_buffer: *mut ID3D11Buffer,
 }
 
@@ -331,7 +332,7 @@ fn init_pipeline(devices: &D11Devices) {
                 SemanticIndex: 0,
                 Format: DXGI_FORMAT_R32G32B32A32_FLOAT,
                 InputSlot: 0,
-                AlignedByteOffset: 12,
+                AlignedByteOffset: 16,
                 InputSlotClass: D3D11_INPUT_PER_VERTEX_DATA,
                 InstanceDataStepRate: 0,
             },
@@ -360,10 +361,11 @@ fn init_pipeline(devices: &D11Devices) {
 fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
     let triangle_verticles = [
         vertex::Vertex {
-            pos: directx_math::XMFLOAT3 {
-                x: 0.0,
-                y: 0.5,
+            pos: directx_math::XMFLOAT4 {
+                x: -1.0,
+                y: 1.0,
                 z: 0.0,
+                w: 1.0,
             },
             color: directx_math::XMFLOAT4 {
                 x: 1.0,
@@ -373,10 +375,11 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             },
         },
         vertex::Vertex {
-            pos: directx_math::XMFLOAT3 {
-                x: 0.45,
-                y: -0.5,
+            pos: directx_math::XMFLOAT4 {
+                x: 1.0,
+                y: -1.0,
                 z: 0.0,
+                w: 1.0,
             },
             color: directx_math::XMFLOAT4 {
                 x: 0.0,
@@ -386,10 +389,11 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             },
         },
         vertex::Vertex {
-            pos: directx_math::XMFLOAT3 {
-                x: -0.45,
-                y: -0.5,
+            pos: directx_math::XMFLOAT4 {
+                x: -1.0,
+                y: -1.0,
                 z: 0.0,
+                w: 1.0,
             },
             color: directx_math::XMFLOAT4 {
                 x: 0.0,
@@ -398,17 +402,44 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
                 w: 1.0,
             },
         },
+        vertex::Vertex {
+            pos: directx_math::XMFLOAT4 {
+                x: 1.0,
+                y: 1.0,
+                z: 0.0,
+                w: 1.0,
+            },
+            color: directx_math::XMFLOAT4 {
+                x: 1.0,
+                y: 1.0,
+                z: 0.0,
+                w: 1.0,
+            },
+        },
     ];
 
-    // create the vertex buffer
+    let triangle_indices = [0, 1, 2, 3, 1, 0];
+
+    // Describe the vertex buffer
     let buffer_desc = D3D11_BUFFER_DESC {
         Usage: D3D11_USAGE_DYNAMIC,
-        ByteWidth: mem::size_of::<vertex::Vertex>() as u32 * 3,
+        ByteWidth: mem::size_of::<vertex::Vertex>() as u32 * triangle_verticles.len() as u32,
         BindFlags: D3D11_BIND_VERTEX_BUFFER,
         CPUAccessFlags: D3D11_CPU_ACCESS_WRITE,
         MiscFlags: 0,
         StructureByteStride: 0,
     };
+
+    // Describe the index buffer
+    let index_buffer_desc = D3D11_BUFFER_DESC {
+        Usage: D3D11_USAGE_IMMUTABLE,
+        ByteWidth: (mem::size_of::<UINT>() * triangle_indices.len()) as u32,
+        BindFlags: D3D11_BIND_INDEX_BUFFER,
+        CPUAccessFlags: 0,
+        MiscFlags: 0,
+        StructureByteStride: 0,
+    };
+
     unsafe {
         // Create Vertex Buffer
         let res = devices._device.as_ref().unwrap().CreateBuffer(
@@ -435,6 +466,23 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             .as_ref()
             .unwrap()
             .Unmap(buffers._vertex_buffer as _, 0);
+
+        // Create Index buffer
+        // Specify the data to initialize the index buffer.
+        let iinit_data = D3D11_SUBRESOURCE_DATA {
+            pSysMem: triangle_indices.as_ptr() as _,
+            SysMemPitch: 0,
+            SysMemSlicePitch: 0,
+        };
+
+        // Create the index buffer.
+        devices._device.as_ref().unwrap().CreateBuffer(
+            &index_buffer_desc,
+            &iinit_data,
+            &mut buffers._index_buffer,
+        );
+
+        println!("{:?}", buffers._index_buffer);
     }
 }
 
@@ -480,6 +528,9 @@ fn set_constant_buffer(f: &f32, devices: &D11Devices, buffers: &mut Buffers) {
         // Create projection matrix
         let projection =
             directx_math::XMMatrixPerspectiveFovLH(0.25 * directx_math::XM_PI, 1.0, 0.1, 50.0);
+
+        // Create Orthographic matrix
+        // let projection = directx_math::XMMatrixOrthographicLH(1.0, 1.0, 0.01, 50.0);
 
         // Create view matrix
         let eye_position = directx_math::XMVectorSet(0.0, 0.0, -8.0, 1.0);
@@ -529,6 +580,7 @@ fn main() {
     let mut buffers = Buffers {
         _vertex_buffer: unsafe { mem::zeroed() },
         _constant_buffer: unsafe { mem::zeroed() },
+        _index_buffer: unsafe { mem::zeroed() },
     };
 
     // 1. Create window
@@ -572,14 +624,26 @@ fn main() {
                 .unwrap()
                 .IASetVertexBuffers(0, 1, &buffers._vertex_buffer, &stride, &offset);
 
+            // select which index buffer
+            d11_devices
+                ._device_context
+                .as_ref()
+                .unwrap()
+                .IASetIndexBuffer(buffers._index_buffer, DXGI_FORMAT_R32_UINT, 0);
+
             // select which primtive type we are using
             d11_devices
                 ._device_context
                 .as_ref()
                 .unwrap()
                 .IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
             // draw the vertex buffer to the back buffer
-            d11_devices._device_context.as_ref().unwrap().Draw(3, 0);
+            d11_devices
+                ._device_context
+                .as_ref()
+                .unwrap()
+                .DrawIndexed(6, 0, 0);
 
             // Switch back & front buffers
             d11_devices._swap_chain.as_ref().unwrap().Present(0, 0);
@@ -593,14 +657,12 @@ unsafe extern "system" fn window_proc(
     w_param: WPARAM,
     l_param: LPARAM,
 ) -> LRESULT {
-    unsafe {
-        match u_msg {
-            WM_DESTROY => {
-                PostQuitMessage(0);
-                return 0;
-            }
-            _ => 0,
-        };
-        DefWindowProcA(hwnd, u_msg, w_param, l_param)
-    }
+    match u_msg {
+        WM_DESTROY => {
+            PostQuitMessage(0);
+            return 0;
+        }
+        _ => 0,
+    };
+    DefWindowProcA(hwnd, u_msg, w_param, l_param)
 }
