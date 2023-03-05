@@ -514,11 +514,14 @@ fn init_constant_buffer(devices: &D11Devices, buffers: &mut Buffers) {
     }
 }
 
-fn set_constant_buffer(f: &f32, devices: &D11Devices, buffers: &mut Buffers) {
+fn set_constant_buffer(f: &f32, window: &Window, devices: &D11Devices, buffers: &mut Buffers) {
     unsafe {
+        
+        let aspect = window.width as f32 / window.height as f32;
+        
         let mut view_projection: directx_math::XMFLOAT4X4 = mem::zeroed();
         let mut world: directx_math::XMFLOAT4X4 = mem::zeroed();
-
+        
         // Set position constant
         directx_math::XMStoreFloat4x4(
             &mut world,
@@ -527,7 +530,7 @@ fn set_constant_buffer(f: &f32, devices: &D11Devices, buffers: &mut Buffers) {
 
         // Create projection matrix
         let projection =
-            directx_math::XMMatrixPerspectiveFovLH(0.25 * directx_math::XM_PI, 1.0, 0.1, 50.0);
+            directx_math::XMMatrixPerspectiveFovLH(0.25 * directx_math::XM_PI, aspect, 0.1, 50.0);
 
         // Create Orthographic matrix
         // let projection = directx_math::XMMatrixOrthographicLH(1.0, 1.0, 0.01, 50.0);
@@ -613,7 +616,7 @@ fn main() {
                 .ClearRenderTargetView(d11_devices._render_target, &array);
 
             f += 0.001;
-            set_constant_buffer(&f, &d11_devices, &mut buffers);
+            set_constant_buffer(&f, &window, &d11_devices, &mut buffers);
 
             // select which vertex buffer to display
             let stride = mem::size_of::<vertex::Vertex>() as u32;
