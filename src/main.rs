@@ -23,6 +23,7 @@ use winapi::um::unknwnbase::IUnknown;
 use winapi::um::winnt::HRESULT;
 use winapi::um::winuser::*;
 
+pub mod time;
 pub mod vertex;
 
 fn win32_string(value: &str) -> Vec<u16> {
@@ -439,7 +440,6 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
     };
 
     unsafe {
-
         let vinit_data = D3D11_SUBRESOURCE_DATA {
             pSysMem: triangle_verticles.as_ptr() as _,
             SysMemPitch: 0,
@@ -524,7 +524,13 @@ fn init_constant_buffer(devices: &D11Devices, buffers: &mut Buffers) {
     }
 }
 
-fn set_constant_buffer(f: &f32, window: &Window, devices: &D11Devices, buffers: &mut Buffers) {
+// TODO: move rot to the UpdateScene
+fn set_constant_buffer(
+    rot: &mut f64,
+    window: &Window,
+    devices: &D11Devices,
+    buffers: &mut Buffers,
+) {
     unsafe {
         let mut model_view_projection: directx_math::XMFLOAT4X4 = mem::zeroed();
 
@@ -541,7 +547,7 @@ fn set_constant_buffer(f: &f32, window: &Window, devices: &D11Devices, buffers: 
         // Create Model Matrix
         // Scale first, then rotate, then move
         let scale = directx_math::XMMatrixScaling(0.25, 0.25, 0.25);
-        let rotation = directx_math::XMMatrixRotationRollPitchYaw(*f, *f, 0.0);
+        let rotation = directx_math::XMMatrixRotationRollPitchYaw(0.0, *rot as f32, 0.0);
         let transform = directx_math::XMMatrixTranslation(0.25, 0.0, 0.0);
         let mut model = directx_math::XMMatrixMultiply(scale, &rotation);
         model = directx_math::XMMatrixMultiply(model, &transform);
@@ -604,7 +610,6 @@ fn main() {
     // 5. Init Pipeline
     // 6. Init Graphics
     // 7. Init Constant buffer
-    let mut f = 0.0;
     let window = create_window(name, title).unwrap();
     create_device(&mut d11_devices);
     create_swap_chain(&window, &mut d11_devices);
@@ -613,11 +618,18 @@ fn main() {
     init_graphics(&d11_devices, &mut buffers);
     init_constant_buffer(&d11_devices, &mut buffers);
 
+    let mut timer = time::Time::new();
+    let mut rot = 0.0;
+
     loop {
         if !handle_message() {
             break;
         }
         unsafe {
+            timer.tick();
+
+            rot += 1.0 * timer.delta_time;
+
             // Clear Canvas
             let array: [f32; 4] = [0.1, 0.0, 0.3, 1.0];
             d11_devices
@@ -626,8 +638,7 @@ fn main() {
                 .unwrap()
                 .ClearRenderTargetView(d11_devices._render_target, &array);
 
-            f += 0.001;
-            set_constant_buffer(&f, &window, &d11_devices, &mut buffers);
+            set_constant_buffer(&mut rot, &window, &d11_devices, &mut buffers);
 
             // draw the vertex buffer to the back buffer
             d11_devices

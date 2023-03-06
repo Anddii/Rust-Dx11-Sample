@@ -11,4 +11,4 @@ winapi = "0.3.9"
 directx_math = "0.2.2"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.9", features = ["winuser", "d3d11", "dxgi", "libloaderapi", "d3dcompiler", "winerror"] }
+winapi = { version = "0.3.9", features = ["winuser", "d3d11", "dxgi", "libloaderapi", "d3dcompiler", "winerror", "profileapi"] }
