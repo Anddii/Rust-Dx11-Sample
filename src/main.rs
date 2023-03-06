@@ -40,8 +40,7 @@ struct Window {
 
 #[allow(dead_code)]
 struct ConstantBufferStruct {
-    world: directx_math::XMFLOAT4X4,
-    view_projection: directx_math::XMFLOAT4X4,
+    model_view_projection: directx_math::XMFLOAT4X4,
 }
 
 struct Buffers {
@@ -315,7 +314,6 @@ fn init_pipeline(devices: &D11Devices) {
         // TODO: WTF???
         let c_position = CString::new("POSITION").unwrap();
         let c_color = CString::new("COLOR").unwrap();
-
         let local_layout = [
             D3D11_INPUT_ELEMENT_DESC {
                 SemanticName: c_position.as_ptr() as *const i8,
@@ -451,7 +449,7 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             panic!("Error creating buffer: {}", res)
         }
 
-        // copy the vertices into the buffer
+        // Copy the vertices into the buffer
         let mut ms: D3D11_MAPPED_SUBRESOURCE = mem::zeroed();
         devices._device_context.as_ref().unwrap().Map(
             buffers._vertex_buffer as _,
@@ -482,7 +480,28 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             &mut buffers._index_buffer,
         );
 
-        println!("{:?}", buffers._index_buffer);
+        // select which vertex buffer to use
+        let stride = mem::size_of::<vertex::Vertex>() as u32;
+        let offset = 0;
+        devices
+            ._device_context
+            .as_ref()
+            .unwrap()
+            .IASetVertexBuffers(0, 1, &buffers._vertex_buffer, &stride, &offset);
+
+        // select which index buffer to use
+        devices._device_context.as_ref().unwrap().IASetIndexBuffer(
+            buffers._index_buffer,
+            DXGI_FORMAT_R32_UINT,
+            0,
+        );
+
+        // select which primtive type we are using
+        devices
+            ._device_context
+            .as_ref()
+            .unwrap()
+            .IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     }
 }
 
@@ -516,38 +535,39 @@ fn init_constant_buffer(devices: &D11Devices, buffers: &mut Buffers) {
 
 fn set_constant_buffer(f: &f32, window: &Window, devices: &D11Devices, buffers: &mut Buffers) {
     unsafe {
-        
+        let mut model_view_projection: directx_math::XMFLOAT4X4 = mem::zeroed();
+
+        // Create Orthographic projection matrix. To create perspective use: directx_math::XMMatrixPerspectiveFovLH(0.25 * directx_math::XM_PI, aspect, 0.1, 50.0)
         let aspect = window.width as f32 / window.height as f32;
-        
-        let mut view_projection: directx_math::XMFLOAT4X4 = mem::zeroed();
-        let mut world: directx_math::XMFLOAT4X4 = mem::zeroed();
-        
-        // Set position constant
-        directx_math::XMStoreFloat4x4(
-            &mut world,
-            directx_math::XMMatrixRotationRollPitchYaw(0.0, *f, 0.0),
-        );
-
-        // Create projection matrix
-        let projection =
-            directx_math::XMMatrixPerspectiveFovLH(0.25 * directx_math::XM_PI, aspect, 0.1, 50.0);
-
-        // Create Orthographic matrix
-        // let projection = directx_math::XMMatrixOrthographicLH(1.0, 1.0, 0.01, 50.0);
+        let projection = directx_math::XMMatrixOrthographicLH(aspect, 1.0, 0.01, 50.0);
 
         // Create view matrix
-        let eye_position = directx_math::XMVectorSet(0.0, 0.0, -8.0, 1.0);
+        let eye_position = directx_math::XMVectorSet(0.0, 0.0, -10.0, 1.0);
         let focus_position = directx_math::XMVectorSet(0.0, 0.0, 0.0, 1.0);
-        let up_direction = directx_math::XMVectorSet(0.0, 1.0, 0.0, 0.0);
+        let up_direction = directx_math::XMVectorSet(0.0, 1.0, 0.0, 1.0);
         let view = directx_math::XMMatrixLookAtLH(eye_position, focus_position, up_direction);
 
-        // Create view_projection constant
-        let view_proj = directx_math::XMMatrixMultiply(view, &projection);
-        directx_math::XMStoreFloat4x4(&mut view_projection, view_proj);
+        // Create Model Matrix
+        // Scale first, then rotate, then move
+        let scale = directx_math::XMMatrixScaling(0.25, 0.25, 0.25);
+        let rotation = directx_math::XMMatrixRotationRollPitchYaw(*f, *f, 0.0);
+        let transform = directx_math::XMMatrixTranslation(0.25, 0.0, 0.0);
+        let mut model = directx_math::XMMatrixMultiply(scale, &rotation);
+        model = directx_math::XMMatrixMultiply(model, &transform);
 
+        // Create model_view_projection matrix
+        let mut model_view_projection_matrix = directx_math::XMMatrixMultiply(model, &view);
+        model_view_projection_matrix =
+            directx_math::XMMatrixMultiply(model_view_projection_matrix, &projection);
+
+        // Create model_view_projection constant
+        // XMMatrixTranspose is very important! Read Remarks: https://learn.microsoft.com/en-us/windows/win32/api/directxmath/nf-directxmath-XMStoreFloat4x4
+        directx_math::XMStoreFloat4x4(
+            &mut model_view_projection,
+            directx_math::XMMatrixTranspose(model_view_projection_matrix),
+        );
         let constant_buffer = ConstantBufferStruct {
-            world,
-            view_projection,
+            model_view_projection,
         };
 
         // Copy the constant data into the buffer
@@ -617,29 +637,6 @@ fn main() {
 
             f += 0.001;
             set_constant_buffer(&f, &window, &d11_devices, &mut buffers);
-
-            // select which vertex buffer to display
-            let stride = mem::size_of::<vertex::Vertex>() as u32;
-            let offset = 0;
-            d11_devices
-                ._device_context
-                .as_ref()
-                .unwrap()
-                .IASetVertexBuffers(0, 1, &buffers._vertex_buffer, &stride, &offset);
-
-            // select which index buffer
-            d11_devices
-                ._device_context
-                .as_ref()
-                .unwrap()
-                .IASetIndexBuffer(buffers._index_buffer, DXGI_FORMAT_R32_UINT, 0);
-
-            // select which primtive type we are using
-            d11_devices
-                ._device_context
-                .as_ref()
-                .unwrap()
-                .IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
             // draw the vertex buffer to the back buffer
             d11_devices

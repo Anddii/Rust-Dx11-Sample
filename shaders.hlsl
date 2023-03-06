@@ -1,7 +1,6 @@
 cbuffer cbPerObject : register(b0)
 {
-    float4x4 gWorld;
-    float4x4 gViewProj;
+    float4x4 model_view_projection;
 };
 
 struct VertexIn
@@ -20,8 +19,7 @@ VertexOut VSMain(VertexIn vIn)
 {
     VertexOut result;
 
-    result.position = mul(vIn.position, gWorld);
-    result.position = mul(result.position, gViewProj);
+    result.position = mul(vIn.position, model_view_projection);
     result.color = vIn.color;
 
     return result;
