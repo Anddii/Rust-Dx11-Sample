@@ -420,10 +420,10 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
 
     // Describe the vertex buffer
     let buffer_desc = D3D11_BUFFER_DESC {
-        Usage: D3D11_USAGE_DYNAMIC,
+        Usage: D3D11_USAGE_IMMUTABLE,
         ByteWidth: mem::size_of::<vertex::Vertex>() as u32 * triangle_verticles.len() as u32,
         BindFlags: D3D11_BIND_VERTEX_BUFFER,
-        CPUAccessFlags: D3D11_CPU_ACCESS_WRITE,
+        CPUAccessFlags: 0,
         MiscFlags: 0,
         StructureByteStride: 0,
     };
@@ -439,31 +439,22 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
     };
 
     unsafe {
+
+        let vinit_data = D3D11_SUBRESOURCE_DATA {
+            pSysMem: triangle_verticles.as_ptr() as _,
+            SysMemPitch: 0,
+            SysMemSlicePitch: 0,
+        };
+
         // Create Vertex Buffer
         let res = devices._device.as_ref().unwrap().CreateBuffer(
             &buffer_desc,
-            null_mut(),
+            &vinit_data,
             &mut buffers._vertex_buffer,
         );
         if FAILED(res) {
             panic!("Error creating buffer: {}", res)
         }
-
-        // Copy the vertices into the buffer
-        let mut ms: D3D11_MAPPED_SUBRESOURCE = mem::zeroed();
-        devices._device_context.as_ref().unwrap().Map(
-            buffers._vertex_buffer as _,
-            0,
-            D3D11_MAP_WRITE_DISCARD,
-            0,
-            &mut ms,
-        );
-        copy_nonoverlapping(&triangle_verticles, ms.pData as _, triangle_verticles.len());
-        devices
-            ._device_context
-            .as_ref()
-            .unwrap()
-            .Unmap(buffers._vertex_buffer as _, 0);
 
         // Create Index buffer
         // Specify the data to initialize the index buffer.
