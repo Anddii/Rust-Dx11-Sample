@@ -320,7 +320,7 @@ fn init_pipeline(devices: &D11Devices) {
                 SemanticName: c_position.as_ptr() as *const i8,
                 //SemanticName: CString::new("POSITION").unwrap().as_ptr() as *const i8, // This doesn't work
                 SemanticIndex: 0,
-                Format: DXGI_FORMAT_R32G32B32_FLOAT,
+                Format: DXGI_FORMAT_R32G32_FLOAT,
                 InputSlot: 0,
                 AlignedByteOffset: 0,
                 InputSlotClass: D3D11_INPUT_PER_VERTEX_DATA,
@@ -331,7 +331,7 @@ fn init_pipeline(devices: &D11Devices) {
                 SemanticIndex: 0,
                 Format: DXGI_FORMAT_R32G32B32A32_FLOAT,
                 InputSlot: 0,
-                AlignedByteOffset: 16,
+                AlignedByteOffset: D3D11_APPEND_ALIGNED_ELEMENT,
                 InputSlotClass: D3D11_INPUT_PER_VERTEX_DATA,
                 InstanceDataStepRate: 0,
             },
@@ -360,11 +360,9 @@ fn init_pipeline(devices: &D11Devices) {
 fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
     let triangle_verticles = [
         vertex::Vertex {
-            pos: directx_math::XMFLOAT4 {
+            pos: directx_math::XMFLOAT2 {
                 x: -1.0,
-                y: 1.0,
-                z: 0.0,
-                w: 1.0,
+                y: 1.0
             },
             color: directx_math::XMFLOAT4 {
                 x: 1.0,
@@ -374,11 +372,9 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             },
         },
         vertex::Vertex {
-            pos: directx_math::XMFLOAT4 {
+            pos: directx_math::XMFLOAT2 {
                 x: 1.0,
-                y: -1.0,
-                z: 0.0,
-                w: 1.0,
+                y: -1.0
             },
             color: directx_math::XMFLOAT4 {
                 x: 0.0,
@@ -388,11 +384,9 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             },
         },
         vertex::Vertex {
-            pos: directx_math::XMFLOAT4 {
+            pos: directx_math::XMFLOAT2 {
                 x: -1.0,
-                y: -1.0,
-                z: 0.0,
-                w: 1.0,
+                y: -1.0
             },
             color: directx_math::XMFLOAT4 {
                 x: 0.0,
@@ -402,11 +396,9 @@ fn init_graphics(devices: &D11Devices, buffers: &mut Buffers) {
             },
         },
         vertex::Vertex {
-            pos: directx_math::XMFLOAT4 {
+            pos: directx_math::XMFLOAT2 {
                 x: 1.0,
                 y: 1.0,
-                z: 0.0,
-                w: 1.0,
             },
             color: directx_math::XMFLOAT4 {
                 x: 1.0,
@@ -628,7 +620,7 @@ fn main() {
         unsafe {
             timer.tick();
 
-            rot += 1.0 * timer.delta_time;
+            rot += 5.0 * timer.delta_time;
 
             // Clear Canvas
             let array: [f32; 4] = [0.1, 0.0, 0.3, 1.0];
